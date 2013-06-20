@@ -1,0 +1,215 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Arithmetic Expressions}
+\frame{\tableofcontents[currentsection]}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}{Semantics: Simple Arithmetic}
+Let's start with a smaller language: arithmetic expressions over natural
+numbers.
+
+\begin{itemize}
+\item In the following ``big-step'' semantics, let $e$ range over expressions 
+and $n$ over natural numbers.
+\end{itemize}
+
+\begin{block}{}
+\[
+\relrule{E\_ANum}{}{\evals{\co{ANum} n}{n}}
+\]
+
+\[
+\relrule{E\_APlus}
+  {\evals{e_1}{n_1} \qquad \evals{e_2}{n_2}}
+  {\evals{\co{APlus} e_1 \, e_2}{n_1 + n_2}}
+\]
+
+\[
+\relrule{E\_AMult}
+  {\evals{e_1}{n_1} \qquad \evals{e_2}{n_2}}
+  {\evals{\co{AMult} e_1 \, e_2}{n_1 \times n_2}}
+\]
+\end{block}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]{Syntax}
+We can encode the \emph{syntax} of this language in Coq as an inductive
+datatype:
+
+\begin{block}{}
+\begin{verbatim}
+Inductive aexp : Type := 
+  | ANum   : nat -> aexp
+  | APlus  : aexp -> aexp -> aexp
+  | AMult  : aexp -> aexp -> aexp.
+\end{verbatim}
+\end{block}
+
+and then use it to write expressions, like these:
+
+\begin{block}{}
+\begin{itemize}
+  \item\texttt{ANum 5}
+  \item\texttt{APlus (ANum 1) (ANum 2)}
+  \item\texttt{AMult (APlus (ANum 1) (ANum 2)) (ANum 3)}
+\end{itemize}
+\end{block}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]{Evaluation function}
+\emph{Evaluation} reduces an expression to a natural number, according to
+the semantics given above.
+\begin{itemize}
+\item One way to do this in Coq is with a recursively-defined \texttt{Fixpoint}
+function.
+\item Coq requires that such functions be total.
+\end{itemize}
+
+\begin{block}{}
+\small\begin{verbatim}
+Fixpoint aeval (e : aexp) : nat :=
+  match e with
+  | ANum n       => n
+  | APlus a1 a2  => (aeval a1) + (aeval a2)
+  | AMult a1 a2  => (aeval a1) * (aeval a2)
+  end.
+\end{verbatim}
+\end{block}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]{Evaluating expressions}
+With \texttt{aeval}, we can force Coq to do some computation for us.
+
+\begin{block}{}
+\small\begin{verbatim}
+Coq < Eval simpl in aeval (APlus (ANum 1) (ANum 2)).
+     = 3 : nat
+\end{verbatim}
+\end{block}
+
+\begin{block}{}
+\small\begin{verbatim}
+Coq < Eval simpl in aeval 
+(AMult (APlus (ANum 1) (ANum 2)) (ANum 3)).
+     = 9 : nat
+\end{verbatim}
+\end{block}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]{Proofs}
+We can also prove things about expressions.
+
+\begin{itemize}
+\item For example, that the following optimization is sound.
+\end{itemize}
+
+\begin{block}{}
+\small{\begin{verbatim}
+Fixpoint optimize_0plus (e:aexp) : aexp := 
+  match e with
+  | ANum n => ANum n
+  | APlus (ANum 0) e2 => optimize_0plus e2
+  | APlus e1 e2 => 
+      APlus (optimize_0plus e1) (optimize_0plus e2)
+  | AMult e1 e2 => 
+      AMult (optimize_0plus e1) (optimize_0plus e2)
+  end.
+\end{verbatim}}
+\end{block}
+
+\begin{block}{}
+\small{\begin{verbatim}
+Theorem optimize_0plus_sound: forall e,
+  aeval (optimize_0plus e) = aeval e.
+Proof...
+\end{verbatim}}
+\end{block}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]{Evaluation relation}
+Another way to encode semantics is with a \textbf{relation} between 
+expressions and their values.
+
+\begin{itemize}
+\item Relations need not be total.
+\item More flexible for semantics with ``stuck states'' and/or potential 
+non-termination.
+\end{itemize}
+
+\begin{block}{}
+\small\begin{verbatim}
+Inductive aevalR : aexp -> nat -> Prop :=
+  | E_ANum : forall (n:nat), 
+      (ANum n) || n
+  | E_APlus : forall (e1 e2: aexp) (n1 n2 : nat), 
+      (e1 || n1) -> (e2 || n2) -> 
+      (APlus e1 e2) || (n1 + n2) 
+  | E_AMult :  forall (e1 e2: aexp) (n1 n2 : nat), 
+      (e1 || n1) -> (e2 || n2) -> 
+      (AMult e1 e2) || (n1 * n2)
+  where "e '||' n" := (aevalR e n).
+\end{verbatim}
+\end{block}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]{Computing with relations}
+With a relation, however, Coq can no longer do computation for us.
+
+\begin{itemize}
+\item Instead, we must provide a \emph{proof} that an expression will evaluate 
+to a certain value.
+\end{itemize}
+\begin{block}{}
+\small\begin{verbatim}
+Example aevalR_ex1 : APlus (ANum 1) (ANum 2) || 3.
+Proof.
+  apply (E_APlus (ANum 1) (ANum 2) 1 2).
+    apply E_ANum.
+    apply E_ANum.
+Qed.
+\end{verbatim}
+\end{block}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]{Proofs with relations}
+With a relation, we can still prove the same kinds of things.
+
+\begin{itemize}
+\item We prove them in a slightly different way.
+\item The choice between functions and relations is, to some extent, aesthetic.
+\end{itemize}
+
+\begin{block}{}
+\small\begin{verbatim}
+Theorem optimize_sound_R: forall e n,
+ e || n -> (optimize_0plus e) || n.
+Proof...
+\end{verbatim}
+\end{block}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]{Equivalence of functional/relational semantics}
+We can prove that our two encodings are equivalent.
+
+\begin{block}{}
+\small\begin{verbatim}
+Theorem aeval_iff_aevalR : forall a n,
+  (a || n) <-> aeval a = n.
+Proof.
+  split.
+    intros H; induction H; subst; reflexivity. 
+
+    generalize dependent n.
+    induction a; simpl; intros; subst; constructor;
+       try apply IHa1; try apply IHa2; reflexivity. 
+Qed.
+\end{verbatim}
+\end{block}
+\end{frame}

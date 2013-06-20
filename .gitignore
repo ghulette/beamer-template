@@ -1,0 +1,13 @@
+slides.dvi
+slides.ps
+slides.pdf
+*.bbl
+*.blg
+*.log
+*.aux
+*.out
+*.vrb
+*.nav
+*.snm
+*.toc
+*.synctex.gz

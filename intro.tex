@@ -1,0 +1,31 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]{Introduction}
+This talk is about encoding imperative programs in Coq. The goal is to be able 
+to write programs like this:
+
+\begin{block}{}
+\begin{verbatim}
+Definition factorial : com :=
+  Z ::= AId X;
+  Y ::= ANum 1;
+  WHILE BNot (BEq (AId Z) (ANum 0)) DO
+    Y ::= AMult (AId Y) (AId Z);
+    Z ::= AMinus (AId Z) (ANum 1)
+  END.
+\end{verbatim}
+\end{block}
+
+The material has been mostly lifted from Benjamin Pierce's online textbook, 
+Software Foundations.\footnote{\url{http://www.cis.upenn.edu/~bcpierce/sf/}}
+\end{frame}
+
+\begin{frame}[fragile]{Goals}
+With these programs, our goals are to be able to:
+
+\begin{itemize}
+\item encode their formal syntax and semantics in Coq;
+\item evaluate them under different initial conditions;
+\item prove things about them (e.g., termination or some invariant condition);
+\item prove \emph{meta-properties} about the language itself.
+\end{itemize}
+\end{frame}
